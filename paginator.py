@@ -131,25 +131,34 @@ class UnifiedPaginator(Paginator):
         results = list(query) #Get the results
         self._process_batch_hook(results, number-1, cursor, offset)
 
-        if not results[offset:]:
-            if number == 1 and self.allow_empty_first_page:
-                pass
-            else:
-                raise EmptyPage('That page contains no results')
-
         nearest_page_with_cursor = self._find_nearest_page_with_cursor(number-1)
         if self._query_supports_cursors:
             #Store the cursor at the start of the NEXT batch
             self._put_cursor(nearest_page_with_cursor + self._batch_size, get_cursor(query))
 
-        actual_results = results[offset:offset + self.per_page]
-        actual_result_count = len(actual_results)
+        batch_result_count = len(results)
 
-        if actual_result_count < self._batch_size * self.per_page:
-            #We are near the end
-            self._put_known_page_count(nearest_page_with_cursor + (actual_result_count // self.per_page) + 1)
-        else:
-            self._put_known_page_count(nearest_page_with_cursor + self._batch_size + 1)
+        actual_results = results[offset:offset + self.per_page]
+
+        if not actual_results:
+            if number == 1 and self.allow_empty_first_page:
+                pass
+            else:
+                raise EmptyPage('That page contains no results')
+
+        known_page_count = nearest_page_with_cursor + (batch_result_count // self.per_page)
+
+        if batch_result_count == self._batch_size * self.per_page:
+            # If we got back exactly the right amount, we assume there is at least
+            # one more page. A potential fix to this is to over-read by 1 element
+            # and then advance the cursor backwards before storing it. I don't know
+            # if this is possible. There is an advance() method on Cursor and also
+            # a reversed() but the former requires the original GAE query and connection
+            # which I don't know how to get from djangoappengine
+            known_page_count += 1
+
+        if self._get_known_page_count() < known_page_count:
+            self._put_known_page_count(known_page_count)
 
         return UnifiedPage(actual_results, number, self)
 
