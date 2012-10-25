@@ -19,15 +19,24 @@ class CursorNotFound(Exception):
     pass
 
 class UnifiedPaginator(Paginator):
-    def __init__(self, queryset, per_page, batch_size=1, *args, **kwargs):
+    def __init__(self, queryset, per_page, batch_size=1, readahead=True, *args, **kwargs):
         """
             batch_size - The steps (in pages) that cursors are cached. A batch_size
             of 1 means that a cursor is cached for the start of each page.
+
+            readahead - When we store a cursor, try to access it to see if there is
+            anything actually there. This makes page counts behave correctly at the
+            cost of an extra keys_only query using the cursor as an offset. This isn't
+            used on IN queries as that would be slow as molasses
         """
 
         self._queryset = queryset
         self._batch_size = batch_size
         self._query_supports_cursors = supports_cursor(queryset)
+        self._readahead = readahead
+
+        if not self._query_supports_cursors:
+            self._readahead = False
 
         self._query_key = " ".join([
             str(queryset.query.where),
@@ -132,9 +141,11 @@ class UnifiedPaginator(Paginator):
         self._process_batch_hook(results, number-1, cursor, offset)
 
         nearest_page_with_cursor = self._find_nearest_page_with_cursor(number-1)
+        next_cursor = None
         if self._query_supports_cursors:
             #Store the cursor at the start of the NEXT batch
-            self._put_cursor(nearest_page_with_cursor + self._batch_size, get_cursor(query))
+            next_cursor = get_cursor(query)
+            self._put_cursor(nearest_page_with_cursor + self._batch_size, next_cursor)
 
         batch_result_count = len(results)
 
@@ -148,16 +159,21 @@ class UnifiedPaginator(Paginator):
 
         known_page_count = nearest_page_with_cursor + (batch_result_count // self.per_page)
 
-        if batch_result_count == self._batch_size * self.per_page:
-            # If we got back exactly the right amount, we assume there is at least
-            # one more page. A potential fix to this is to over-read by 1 element
-            # and then advance the cursor backwards before storing it. I don't know
-            # if this is possible. There is an advance() method on Cursor and also
-            # a reversed() but the former requires the original GAE query and connection
-            # which I don't know how to get from djangoappengine
-            known_page_count += 1
+        if known_page_count >= self._get_known_page_count():
+            if next_cursor and self._readahead:
+                query = self._queryset.all().values_list('pk')
+                query = set_cursor(query, start=next_cursor)
+                try:
+                    query[0]
+                except IndexError:
+                    pass
+                else:
+                    known_page_count += 1
+            elif batch_result_count == self._batch_size * self.per_page:
+                # If we got back exactly the right amount, we assume there is at least
+                # one more page.
+                known_page_count += 1
 
-        if self._get_known_page_count() < known_page_count:
             self._put_known_page_count(known_page_count)
 
         return UnifiedPage(actual_results, number, self)
