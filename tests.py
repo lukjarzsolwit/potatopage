@@ -65,5 +65,30 @@ class UnifiedPaginatorTests(TestCase):
         self.assertEqual(2, len(page3.object_list))
         self.assertEqual(10, page3.object_list[0].field1)
 
+    def test_in_query(self):
+        paginator = UnifiedPaginator(PaginationModel.objects.filter(field1__in=xrange(12)).all().order_by("field1"), 5)
+
+        page1 = paginator.page(1)
+        self.assertEqual(5, len(page1.object_list))
+        self.assertEqual(0, page1.object_list[0].field1)
+        self.assertTrue(page1.has_next())
+        self.assertFalse(page1.has_previous())
+        self.assertEqual([1, 2], page1.available_pages())
+
+        page2 = paginator.page(2)
+        self.assertEqual(5, len(page2.object_list))
+        self.assertEqual(5, page2.object_list[0].field1)
+        self.assertTrue(page2.has_next())
+        self.assertTrue(page2.has_previous())
+        self.assertEqual([1, 2, 3], page2.available_pages())
+
+        page3 = paginator.page(3)
+        self.assertEqual(2, len(page3.object_list))
+        self.assertEqual(10, page3.object_list[0].field1)
+        self.assertFalse(page3.has_next())
+        self.assertTrue(page3.has_previous())
+        self.assertEqual([2, 3], page3.available_pages())
+
+        self.assertRaises(EmptyPage, paginator.page, 4)
 
 

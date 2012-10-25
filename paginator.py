@@ -10,6 +10,11 @@ from django.core.paginator import (
 
 from djangoappengine.db.utils import set_cursor, get_cursor
 
+try:
+    from datastore_utils.get_in_batches import supports_cursor
+except ImportError:
+    from libs.datastore_utils.get_in_batches import supports_cursor
+
 class CursorNotFound(Exception):
     pass
 
@@ -22,7 +27,8 @@ class UnifiedPaginator(Paginator):
 
         self._queryset = queryset
         self._batch_size = batch_size
-        self._query_supports_cursors = True #FIXME
+        self._query_supports_cursors = supports_cursor(queryset)
+
         self._query_key = " ".join([
             str(queryset.query.where),
             str(queryset.query.order_by),
@@ -41,6 +47,9 @@ class UnifiedPaginator(Paginator):
         return cache.set(key, count)
 
     def _put_cursor(self, zero_based_page, cursor):
+        if not self._query_supports_cursors:
+            return
+
         assert cursor
         logging.info("Storing cursor for page: %s" % (zero_based_page))
         key = "|".join([self._query_key, str(zero_based_page)])
@@ -81,21 +90,20 @@ class UnifiedPaginator(Paginator):
 
     def _get_cursor_and_offset(self, page):
         """ Returns a cursor and offset for the page. page is zero-based! """
-        if not self._query_supports_cursors:
-            return None, self.per_page * page
 
         offset = 0
         cursor = None
-
         page_with_cursor = self._find_nearest_page_with_cursor(page)
-        if page_with_cursor > 0:
-            try:
-                cursor = self._get_cursor(page_with_cursor)
-                logging.info("Using existing cursor from memcache")
-            except CursorNotFound:
-                logging.info("Couldn't find a cursor")
-                #No cursor found, so we just return the offset old-skool-style.
-                cursor = None
+
+        if self._query_supports_cursors:
+            if page_with_cursor > 0:
+                try:
+                    cursor = self._get_cursor(page_with_cursor)
+                    logging.info("Using existing cursor from memcache")
+                except CursorNotFound:
+                    logging.info("Couldn't find a cursor")
+                    #No cursor found, so we just return the offset old-skool-style.
+                    cursor = None
 
         offset = (page - page_with_cursor) * self.per_page
 
@@ -112,13 +120,13 @@ class UnifiedPaginator(Paginator):
 
         if cursor:
             #Read the entire batch size from the last cursor
-            query = self._queryset[:(self.per_page * self._batch_size)]
+            query = self._queryset.all()[:(self.per_page * self._batch_size)]
             query = set_cursor(query, start=cursor)
         else:
             bottom = (self.per_page * self._find_nearest_page_with_cursor(number-1))
             top = bottom + (self.per_page * self._batch_size)
             #No cursor, so grab the full batch
-            query = self._queryset[bottom:top]
+            query = self._queryset.all()[bottom:top]
 
         results = list(query) #Get the results
         self._process_batch_hook(results, number-1, cursor, offset)
@@ -130,8 +138,9 @@ class UnifiedPaginator(Paginator):
                 raise EmptyPage('That page contains no results')
 
         nearest_page_with_cursor = self._find_nearest_page_with_cursor(number-1)
-        #Store the cursor at the start of the NEXT batch
-        self._put_cursor(nearest_page_with_cursor + self._batch_size, get_cursor(query))
+        if self._query_supports_cursors:
+            #Store the cursor at the start of the NEXT batch
+            self._put_cursor(nearest_page_with_cursor + self._batch_size, get_cursor(query))
 
         actual_results = results[offset:offset + self.per_page]
         actual_result_count = len(actual_results)
