@@ -32,6 +32,14 @@ class UnifiedPaginator(Paginator):
 
         super(UnifiedPaginator, self).__init__(None, per_page, *args, **kwargs)
 
+    def _get_known_page_count(self):
+        key = "|".join([self._query_key, "KNOWN_MAX"])
+        return cache.get(key)
+
+    def _put_known_page_count(self, count):
+        key = "|".join([self._query_key, "KNOWN_MAX"])
+        return cache.set(key, count)
+
     def _put_cursor(self, zero_based_page, cursor):
         assert cursor
         logging.info("Storing cursor for page: %s" % (zero_based_page))
@@ -121,14 +129,59 @@ class UnifiedPaginator(Paginator):
             else:
                 raise EmptyPage('That page contains no results')
 
+        nearest_page_with_cursor = self._find_nearest_page_with_cursor(number-1)
         #Store the cursor at the start of the NEXT batch
-        self._put_cursor(self._find_nearest_page_with_cursor(number-1) + self._batch_size, get_cursor(query))
+        self._put_cursor(nearest_page_with_cursor + self._batch_size, get_cursor(query))
 
-        return Page(results[offset:offset + self.per_page], number, self)
+        actual_results = results[offset:offset + self.per_page]
+        actual_result_count = len(actual_results)
+
+        if actual_result_count < self._batch_size * self.per_page:
+            #We are near the end
+            self._put_known_page_count(nearest_page_with_cursor + (actual_result_count // self.per_page) + 1)
+        else:
+            self._put_known_page_count(nearest_page_with_cursor + self._batch_size + 1)
+
+        return UnifiedPage(actual_results, number, self)
 
     def _get_count(self):
         raise NotImplemented("Not available in %s" % self.__class__.__name__)
 
     def _get_num_pages(self):
         raise NotImplemented("Not available in %s" % self.__class__.__name__)
+
+class UnifiedPage(Page):
+    def __init__(self, object_list, number, paginator):
+        super(UnifiedPage, self).__init__(object_list, number, paginator)
+
+    def has_next(self):
+        return self.number < self.paginator._get_known_page_count()
+
+    def end_index(self):
+        """ Override to prevent a call to _get_count """
+        return self.number * self.paginator.per_page
+
+    def available_pages(self, limit_to_batch_size=True):
+        """
+            Returns a list of sorted integers that represent the
+            pages that should be displayed in the paginator. In relation to the
+            current page. For example, if this page is page 3, and batch_size is 5
+            we get the following:
+
+            [ 1, 2, *3*, 4, 5, 6, 7, 8 ]
+
+            If we then choose page 7, we get this:
+
+            [ 2, 3, 4, 5, 6, *7*, 8, 9, 10, 11, 12 ]
+
+            If limit_to_batch_size is False, then you always get all known pages
+            this will generally be the same for the upper count, but the results
+            will always start at 1.
+        """
+        min_page = (self.number - self.paginator._batch_size) if limit_to_batch_size else 1
+        if min_page < 1:
+            min_page = 1
+
+        max_page = min(self.number + self.paginator._batch_size, self.paginator._get_known_page_count())
+        return list(xrange(min_page, max_page + 1))
 
