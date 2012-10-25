@@ -32,13 +32,26 @@ class UnifiedPaginator(Paginator):
 
         super(UnifiedPaginator, self).__init__(None, per_page, *args, **kwargs)
 
-    def _put_cursor(self, page, cursor):
-        key = "|".join([self._query_key, str(page)])
+    def _put_cursor(self, zero_based_page, cursor):
+        assert cursor
+        logging.info("Storing cursor for page: %s" % (zero_based_page))
+        key = "|".join([self._query_key, str(zero_based_page)])
         cache.set(key, cursor)
 
-    def _get_cursor(self, page):
-        key = "|".join([self._query_key, str(page)])
-        return cache.get(key)
+    def _get_cursor(self, zero_based_page):
+        logging.info("Getting cursor for page: %s" % (zero_based_page))
+        key = "|".join([self._query_key, str(zero_based_page)])
+        result = cache.get(key)
+        if result is None:
+            raise CursorNotFound("No cursor available for %s" % zero_based_page)
+        return result
+
+    def has_cursor_for_page(self, page):
+        try:
+            self._get_cursor(page-1)
+            return True
+        except CursorNotFound:
+            return False
 
     def validate_number(self, number):
         "Validates the given 1-based page number."
@@ -51,6 +64,13 @@ class UnifiedPaginator(Paginator):
 
         return number
 
+    def _find_nearest_page_with_cursor(self, current_page):
+        #Find the next page down that should be storing a cursor
+        page_with_cursor = current_page
+        while page_with_cursor % self._batch_size != 0:
+            page_with_cursor -= 1
+        return page_with_cursor
+
     def _get_cursor_and_offset(self, page):
         """ Returns a cursor and offset for the page. page is zero-based! """
         if not self._query_supports_cursors:
@@ -59,43 +79,41 @@ class UnifiedPaginator(Paginator):
         offset = 0
         cursor = None
 
-        def find_nearest_page_with_cursor(current_page):
-            #Find the next page down that should be storing a cursor
-            page_with_cursor = current_page
-            while page_with_cursor % self._batch_size != 0:
-                page_with_cursor -= 1
-            return page_with_cursor
-
-        page_with_cursor = find_nearest_page_with_cursor(page)
-
-        try:
-            cursor = self._get_cursor(page_with_cursor)
-            logging.info("Using existing cursor from memcache")
-        except CursorNotFound:
-            logging.info("Couldn't find a cursor, creating one")
-            #FIXME: This could be much smarter, we could keep going backwards
-            #until we find a cursor and then seek forwards. We could also
-            #store the cursor at each batch size
-
-            #Cursor wasn't there! So let's seek it out and store it
-            query = self._queryset[:page_with_cursor * self.per_page]
-            self._put_cursor(page_with_cursor, get_cursor(query))
-            cursor = self._get_cursor(page_with_cursor)
+        page_with_cursor = self._find_nearest_page_with_cursor(page)
+        if page_with_cursor > 0:
+            try:
+                cursor = self._get_cursor(page_with_cursor)
+                logging.info("Using existing cursor from memcache")
+            except CursorNotFound:
+                logging.info("Couldn't find a cursor")
+                #No cursor found, so we just return the offset old-skool-style.
+                cursor = None
 
         offset = (page - page_with_cursor) * self.per_page
 
         return cursor, offset
+
+    def _process_batch_hook(self, batch_results, zero_based_page, cursor, offset):
+        """ Override this in the subclass to cache results etc."""
+        pass
 
     def page(self, number):
         number = self.validate_number(number)
 
         cursor, offset = self._get_cursor_and_offset(number-1)
 
-        #Read the entire batch size from the last cursor
-        query = self._queryset[:(self.per_page * self._batch_size)]
-        query = set_cursor(query, start=cursor)
+        if cursor:
+            #Read the entire batch size from the last cursor
+            query = self._queryset[:(self.per_page * self._batch_size)]
+            query = set_cursor(query, start=cursor)
+        else:
+            bottom = (self.per_page * self._find_nearest_page_with_cursor(number-1))
+            top = bottom + (self.per_page * self._batch_size)
+            #No cursor, so grab the full batch
+            query = self._queryset[bottom:top]
 
         results = list(query) #Get the results
+        self._process_batch_hook(results, number-1, cursor, offset)
 
         if not results[offset:]:
             if number == 1 and self.allow_empty_first_page:
@@ -103,9 +121,8 @@ class UnifiedPaginator(Paginator):
             else:
                 raise EmptyPage('That page contains no results')
 
-        #Store the cursor on the NEXT page (put_cursor uses zero-based pages)
-        #so number is current_page + 1
-        self._put_cursor(number, get_cursor(query))
+        #Store the cursor at the start of the NEXT batch
+        self._put_cursor(self._find_nearest_page_with_cursor(number-1) + self._batch_size, get_cursor(query))
 
         return Page(results[offset:offset + self.per_page], number, self)
 
