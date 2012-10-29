@@ -47,6 +47,14 @@ class UnifiedPaginator(Paginator):
 
         super(UnifiedPaginator, self).__init__(None, per_page, *args, **kwargs)
 
+    def _get_final_page(self):
+        key = "|".join([self._query_key, "LAST_PAGE"])
+        return cache.get(key)
+
+    def _put_final_page(self, page):
+        key = "|".join([self._query_key, "LAST_PAGE"])
+        cache.set(key, page)
+
     def _get_known_page_count(self):
         key = "|".join([self._query_key, "KNOWN_MAX"])
         return cache.get(key)
@@ -56,10 +64,9 @@ class UnifiedPaginator(Paginator):
         return cache.set(key, count)
 
     def _put_cursor(self, zero_based_page, cursor):
-        if not self._query_supports_cursors:
+        if not self._query_supports_cursors or cursor is None:
             return
 
-        assert cursor
         logging.info("Storing cursor for page: %s" % (zero_based_page))
         key = "|".join([self._query_key, str(zero_based_page)])
         cache.set(key, cursor)
@@ -166,6 +173,7 @@ class UnifiedPaginator(Paginator):
                 try:
                     query[0]
                 except IndexError:
+                    self._put_final_page(known_page_count)
                     pass
                 else:
                     known_page_count += 1
@@ -194,6 +202,9 @@ class UnifiedPage(Page):
     def end_index(self):
         """ Override to prevent a call to _get_count """
         return self.number * self.paginator.per_page
+
+    def final_page_visible(self):
+        return self.paginator._get_final_page() in self.available_pages()
 
     def available_pages(self, limit_to_batch_size=True):
         """
