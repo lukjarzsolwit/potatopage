@@ -199,6 +199,12 @@ class UnifiedPage(Page):
     def has_next(self):
         return self.number < self.paginator._get_known_page_count()
 
+    def start_index(self):
+        """ Override to prevent returning 0 """
+        if self.number == 0:
+            return 1
+        return (self.paginator.per_page * (self.number - 1)) + 1
+
     def end_index(self):
         """ Override to prevent a call to _get_count """
         return self.number * self.paginator.per_page
