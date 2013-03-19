@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 
 from django.core.cache import cache
 from django.core.paginator import (
@@ -164,7 +165,7 @@ class UnifiedPaginator(Paginator):
             else:
                 raise EmptyPage('That page contains no results')
 
-        known_page_count = nearest_page_with_cursor + (batch_result_count // self.per_page)
+        known_page_count = int(nearest_page_with_cursor + ceil(batch_result_count / float(self.per_page)))
 
         if known_page_count >= self._get_known_page_count():
             if next_cursor and self._readahead:
