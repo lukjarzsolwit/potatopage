@@ -46,7 +46,7 @@ class UnifiedPaginator(Paginator):
             str(queryset.query.high_mark)
         ]).replace(" ", "_")
 
-        super(UnifiedPaginator, self).__init__(None, per_page, *args, **kwargs)
+        super(UnifiedPaginator, self).__init__(queryset, per_page, *args, **kwargs)
 
     def _get_final_page(self):
         key = "|".join([self._query_key, "LAST_PAGE"])
@@ -184,7 +184,6 @@ class UnifiedPaginator(Paginator):
                 known_page_count += 1
 
             self._put_known_page_count(known_page_count)
-
         return UnifiedPage(actual_results, number, self)
 
     def _get_count(self):
