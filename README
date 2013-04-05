@@ -1,6 +1,6 @@
 # What is potatopage?
 
-Potatopage contains a paginator class called UnifiedPaginator. This is an attempt 
+Potatopage contains a paginator class called UnifiedPaginator. This is an attempt
 to unify various systems of using cursors to provide pagination on AppEngine.
 
 The idea is that the paginator takes a batch_size argument. This controls the pages

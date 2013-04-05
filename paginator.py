@@ -236,3 +236,6 @@ class UnifiedPage(Page):
         max_page = min(self.number + self.paginator._batch_size, self.paginator._get_known_page_count())
         return list(xrange(min_page, max_page + 1))
 
+    def __repr__(self):
+        return '<UnifiedPage %s>' % self.number
+
