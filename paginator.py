@@ -8,13 +8,10 @@ from django.core.paginator import (
     PageNotAnInteger,
     Page
 )
-
 from djangoappengine.db.utils import set_cursor, get_cursor
 
-try:
-    from datastore_utils.get_in_batches import supports_cursor
-except ImportError:
-    from libs.datastore_utils.get_in_batches import supports_cursor
+from potatopage.utils import supports_cursor
+
 
 class CursorNotFound(Exception):
     pass
