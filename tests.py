@@ -1,10 +1,7 @@
 from django.db import models
 from django.test import TestCase
 
-try:
-    from test_utils import mock
-except ImportError:
-    from libs.test_utils import mock
+import mock
 
 from potatopage.paginator import UnifiedPaginator, EmptyPage
 
