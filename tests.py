@@ -5,8 +5,10 @@ import mock
 
 from potatopage.paginator import UnifiedPaginator, EmptyPage
 
+
 class PaginationModel(models.Model):
     field1 = models.IntegerField()
+
 
 class UnifiedPaginatorTests(TestCase):
     def setUp(self):
@@ -87,5 +89,3 @@ class UnifiedPaginatorTests(TestCase):
         self.assertEqual([2, 3], page3.available_pages())
 
         self.assertRaises(EmptyPage, paginator.page, 4)
-
-
