@@ -1,3 +1,6 @@
+from django.db.models.sql.where import WhereNode
+
+
 def supports_cursor(queryset):
     #First, see if we are using one of Django's built-in connections
     #if we are then, return False
@@ -9,6 +12,7 @@ def supports_cursor(queryset):
 
     def isnt_in_or_exclude_query(queryset):
         lookup = 'in'
+
         def traverse_where_tree(nodes):
             for n in nodes:
                 if not isinstance(n, WhereNode):
