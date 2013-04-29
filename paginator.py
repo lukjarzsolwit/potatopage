@@ -189,9 +189,16 @@ class UnifiedPaginator(Paginator):
     def _get_num_pages(self):
         raise NotImplemented("Not available in %s" % self.__class__.__name__)
 
+
 class UnifiedPage(Page):
     def __init__(self, object_list, number, paginator):
         super(UnifiedPage, self).__init__(object_list, number, paginator)
+
+    def __repr__(self):
+        """ Overwrite paginator's repr, so no Exception gets thrown
+            because the number of pages is unknown.
+        """
+        return '<Page %s>' % (self.number)
 
     def has_next(self):
         return self.number < self.paginator._get_known_page_count()
