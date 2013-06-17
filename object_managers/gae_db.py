@@ -11,6 +11,7 @@ class GaeQuerysetWrapper(ObjectManager):
     def __init__(self, queryset):
         self.queryset = queryset
         self.supports_cursors = supports_cursor(queryset)
+        self._start_cursor = None
 
     def get_cache_key(self):
         return " ".join([
@@ -31,15 +32,16 @@ class GaeQuerysetWrapper(ObjectManager):
             self._start_cursor = None
 
         obj_list = list(query)
-        self._cached_query = query
+        try:
+            self._latest_cursor = get_cursor(query)
+        except TypeError:
+            self._latest_cursor = None
+
         return obj_list
 
     @property
     def next_cursor(self):
-        if not hasattr(self, "_cached_query"):
-            return get_cursor(self._cached_query)
-
-        return None  # Not necessary, just making it clear.
+        return self._latest_cursor
 
     def contains_more_objects(self, next_batch_cursor):
         query = self.queryset.all().values_list('pk')
