@@ -121,7 +121,8 @@ class UnifiedPaginator(Paginator):
         cursor, offset = self._get_cursor_and_offset(number-1)
 
         if cursor:
-            results = self.object_list.starting_cursor(cursor)[:(self.per_page * self._batch_size)]
+            self.object_list.starting_cursor(cursor)
+            results = self.object_list[:(self.per_page * self._batch_size)]
         else:
             bottom = (self.per_page * self._find_nearest_page_with_cursor(number-1))
             top = bottom + (self.per_page * self._batch_size)
@@ -224,7 +225,7 @@ class UnifiedPage(Page):
         return '<UnifiedPage %s>' % self.number
 
 
-from object_managers.base import GaeQuerysetWrapper
+from object_managers.gae_db import GaeQuerysetWrapper
 
 class GaeUnifiedPaginator(UnifiedPaginator):
 
