@@ -1,28 +1,7 @@
 from djangoappengine.db.utils import set_cursor, get_cursor
-from potatopage.utils import supports_cursor
 
-
-class ObjectManager(object):
-    supports_cursors = None
-
-    def get_cache_key(self):
-        raise NotImplemented()
-    cache_key = property(get_cache_key)
-
-    def starting_cursor(self, cursor):
-        if self.supports_cursors:
-            raise NotImplemented()
-
-    @property
-    def next_cursor(self):
-        if self.supports_cursors:
-            raise NotImplemented()
-
-    def __getitem__(self, value):
-        raise NotImplemented()
-
-    def contains_more_objects(self):
-        raise NotImplemented()
+from ..utils import supports_cursor
+from .base import ObjectManager
 
 
 # All the following stuff will move into a separate file when reviewed.
@@ -33,18 +12,17 @@ class GaeQuerysetWrapper(ObjectManager):
         self.queryset = queryset
         self.supports_cursors = supports_cursor(queryset)
 
-    def get_cache_key():
+    def get_cache_key(self):
         return " ".join([
-            str(queryset.query.where),
-            str(queryset.query.order_by),
-            str(queryset.query.low_mark),
-            str(queryset.query.high_mark)
+            str(self.queryset.query.where),
+            str(self.queryset.query.order_by),
+            str(self.queryset.query.low_mark),
+            str(self.queryset.query.high_mark)
         ]).replace(" ", "_")
     cache_key = property(get_cache_key)
 
     def starting_cursor(self, cursor):
         self._start_cursor = cursor
-        return self
 
     def __getitem__(self, value):
         query = self.queryset.all()[value]
@@ -65,12 +43,10 @@ class GaeQuerysetWrapper(ObjectManager):
 
     def contains_more_objects(self, next_batch_cursor):
         query = self.queryset.all().values_list('pk')
-        query = set_cursor(query, start=next_page_cursor)
+        query = set_cursor(query, start=next_batch_cursor)
 
         try:
             query[0]
             return True
         except IndexError:
             return False
-
-
