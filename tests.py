@@ -3,7 +3,7 @@ from django.test import TestCase
 
 import mock
 
-from potatopage.paginator import UnifiedPaginator, EmptyPage
+from potatopage.paginator import GaeUnifiedPaginator, EmptyPage
 
 
 class PaginationModel(models.Model):
@@ -16,7 +16,7 @@ class UnifiedPaginatorTests(TestCase):
             PaginationModel.objects.create(field1=i)
 
     def test_basic_usage(self):
-        paginator = UnifiedPaginator(PaginationModel.objects.all().order_by("field1"), 5)
+        paginator = GaeUnifiedPaginator(PaginationModel.objects.all().order_by("field1"), 5)
 
         page1 = paginator.page(1)
         self.assertEqual(5, len(page1.object_list))
@@ -42,7 +42,7 @@ class UnifiedPaginatorTests(TestCase):
         self.assertRaises(EmptyPage, paginator.page, 4)
 
     def test_cursor_caching(self):
-        paginator = UnifiedPaginator(PaginationModel.objects.all().order_by("field1"), 5, batch_size=2)
+        paginator = GaeUnifiedPaginator(PaginationModel.objects.all().order_by("field1"), 5, batch_size=2)
 
         paginator.page(3)
 
@@ -55,7 +55,7 @@ class UnifiedPaginatorTests(TestCase):
         self.assertTrue(paginator.has_cursor_for_page(3))
         self.assertTrue(paginator.has_cursor_for_page(5))
 
-        with mock.patch("potatopage.paginator.UnifiedPaginator._process_batch_hook") as mock_obj:
+        with mock.patch("potatopage.paginator.GaeUnifiedPaginator._process_batch_hook") as mock_obj:
             #Should now use the cached cursor
             page3 = paginator.page(3)
             #Should have been called with a cursor as the 3rd argument
@@ -65,7 +65,7 @@ class UnifiedPaginatorTests(TestCase):
         self.assertEqual(10, page3.object_list[0].field1)
 
     def test_in_query(self):
-        paginator = UnifiedPaginator(PaginationModel.objects.filter(field1__in=xrange(12)).all().order_by("field1"), 5)
+        paginator = GaeUnifiedPaginator(PaginationModel.objects.filter(field1__in=xrange(12)).all().order_by("field1"), 5)
 
         page1 = paginator.page(1)
         self.assertEqual(5, len(page1.object_list))
