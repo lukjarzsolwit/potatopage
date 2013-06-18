@@ -11,7 +11,7 @@ into the results.
 
 # How can I use it?
 
-That's pretty easy, depending on the datastore you'd like to use, pick the right paginator and just use it as you'd use a [Django paginator](https://docs.djangoproject.com/en/dev/topics/pagination/). The only bit to keep in mind is that the `UnifiedPaginator` won't query all objects in one go, it does queries limited to the size of the batch you specify with `batch_size`. Here the two available paginators with a quick example:
+That's pretty easy, depending on the datastore you'd like to use, pick the right paginator and just use it as you'd use a [Django paginator](https://docs.djangoproject.com/en/dev/topics/pagination/). Here the two available paginators with a quick example:
 
 1. Django-nonrel Paginator
 
@@ -34,3 +34,10 @@ That's pretty easy, depending on the datastore you'd like to use, pick the right
 		page1 = paginator.page(1)
 		
 The `page1` you get in return is an instance of `UnifiedPage` and can be used like a Django paginator page. 
+
+### Note:
+
+The only bit to keep in mind is that all these paginators won't query all objects in one go, it does the queries limited to the size of the batch you specify with `batch_size`. I.e. calls like e.g. `paginator.num_pages` aren't possible. To make work with this `UnifiedPaginator` subclasses a bit easier, other properties were added to the resulting page though:
+
+* `page.available_pages()`: returns a list of page numbers that have already been queried by the paginator. 
+* `page.final_page_visible()`: checks if the list of page numbers returned by `page.available_pages()` contains the final page or not and returns the result as a boolean.
