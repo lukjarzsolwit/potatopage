@@ -3,12 +3,12 @@ from google.appengine.datastore.datastore_query import Cursor
 from .base import ObjectManager
 
 
-class NdbModelObjectManager(ObjectManager):
+class GaeNdbModelManager(ObjectManager):
     """
-    An object manager for ndb models.
+        An object manager for ndb models.
 
-    TODO: Proper testing, so far it has only be used to write a few tests for
-          the FilterablePaginator.
+        TODO: Writing some manager specific tests. Currently we always just test
+              the paginator itself.
     """
     supports_cursors = True
 
@@ -18,7 +18,8 @@ class NdbModelObjectManager(ObjectManager):
         self._contians_more_entities = None
         self._latest_end_cursor = None
 
-    def get_cache_key(self):
+    @property
+    def cache_key(self):
         return " ".join([
             str(self.query._Query__kind),
             str(self.query._Query__ancestor),
@@ -27,7 +28,6 @@ class NdbModelObjectManager(ObjectManager):
             str(self.query._Query__app),
             str(self.query._Query__namespace)
         ]).replace(" ", "_")
-    cache_key = property(get_cache_key)
 
     def starting_cursor(self, cursor):
         self._starting_cursor = Cursor(urlsafe=cursor)
