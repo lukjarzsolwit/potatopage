@@ -37,7 +37,7 @@ The `page1` you get in return is an instance of `UnifiedPage` and can be used li
 
 ### Note:
 
-The only bit to keep in mind is that all these paginators won't query all objects in one go, it does the queries limited to the size of the batch you specify with `batch_size`. I.e. calls like e.g. `paginator.num_pages` aren't possible. To make work with this `UnifiedPaginator` subclasses a bit easier, other properties were added to the resulting page though:
+The only bit to keep in mind is that all these paginators won't query all objects in one go, it does the queries limited to the size of the batch you specify with `batch_size`. I.e. calls like e.g. `paginator.num_pages` aren't possible. To make work with this `UnifiedPaginator` subclasses a bit easier, other properties were added to the returned page:
 
 * `page.available_pages()`: returns a list of page numbers that have already been queried by the paginator. 
 * `page.final_page_visible()`: checks if the list of page numbers returned by `page.available_pages()` contains the final page or not and returns the result as a boolean.
