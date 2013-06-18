@@ -15,6 +15,7 @@ class DjangoNonrelManager(ObjectManager):
         self.queryset = queryset
         self.supports_cursors = supports_cursor(queryset)
         self._start_cursor = None
+        self._latest_cursor = None
 
     @property
     def cache_key(self):
@@ -27,6 +28,7 @@ class DjangoNonrelManager(ObjectManager):
 
     def starting_cursor(self, cursor):
         self._start_cursor = cursor
+        self._latest_cursor = None
 
     @property
     def next_cursor(self):
