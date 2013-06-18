@@ -20,6 +20,10 @@ class GaeNdbModelManager(ObjectManager):
 
     @property
     def cache_key(self):
+        """
+            Returns a key that can be used to cache this particular object manager.
+            I.e. a unique string for the given query.
+        """
         return " ".join([
             str(self.query._Query__kind),
             str(self.query._Query__ancestor),
@@ -30,6 +34,10 @@ class GaeNdbModelManager(ObjectManager):
         ]).replace(" ", "_")
 
     def starting_cursor(self, cursor):
+        """
+            Let's you set the starting cursor. Should be called before actually
+            calling __getitem__()
+        """
         self._starting_cursor = Cursor(urlsafe=cursor)
         # we need to set those to None, otherwise a second query with the same
         # paginator would fail as the cursors are already set.
@@ -39,9 +47,16 @@ class GaeNdbModelManager(ObjectManager):
 
     @property
     def next_cursor(self):
+        """
+            Returns the end cursor after doing the query and validating it.
+        """
         return self._latest_end_cursor
 
     def __getitem__(self, value):
+        """
+            Does the query, saves the cursor for the next query to self and
+            returns the objects in form of a list.
+        """
         if isinstance(value, slice):
             start, max_items = value.start, value.stop
 
@@ -61,6 +76,10 @@ class GaeNdbModelManager(ObjectManager):
         return entities[value]
 
     def contains_more_objects(self, next_cursor):
+        """
+            Returns a boolean telling if there are more objects in the queryset
+            or if there aren't.
+        """
         if self._contians_more_entities is not None:
             return self._contians_more_entities
 
