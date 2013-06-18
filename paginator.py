@@ -9,6 +9,8 @@ from django.core.paginator import (
     Page
 )
 
+from .object_managers.base import ObjectManager
+
 
 class CursorNotFound(Exception):
     pass
@@ -27,6 +29,9 @@ class UnifiedPaginator(Paginator):
 
         self._batch_size = batch_size
         self._readahead = readahead
+
+        if not isinstance(object_list, ObjectManager):
+            raise TypeError('%s doesn\'t support standard object lists. Please make sure it\'s a subclass of %s' % (self.__class__.__name__, ObjectManager.__name__))
 
         if not object_list.supports_cursors:
             self._readahead = False
