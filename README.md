@@ -13,7 +13,7 @@ into the results.
 
 That's pretty easy, depending on the datastore you'd like to use, pick the right paginator and just use it as you'd use a [Django paginator](https://docs.djangoproject.com/en/dev/topics/pagination/). The only bit to keep in mind is that the `UnifiedPaginator` won't query all objects in one go, it does queries limited to the size of the batch you specify with `batch_size`. Here the two available paginators with a quick example:
 
-1. DjangoNonrelPaginator
+1. `DjangoNonrelPaginator`
 
 		from potatopage.paginator import DjangoNonrelPaginator
 		# Import your Django-nonrel model.
@@ -23,7 +23,7 @@ That's pretty easy, depending on the datastore you'd like to use, pick the right
 		paginator = DjangoNonrelPaginator(queryset, per_page=10, batch_size=2)
 		page1 = paginator.page(1)
 
-2. GaeNdbPaginator
+2. `GaeNdbPaginator`
 
 		from potatopage.paginator import GaeNdbPaginator
 		# Import your App Engine NDB model
