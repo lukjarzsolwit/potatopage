@@ -230,10 +230,23 @@ class UnifiedPage(Page):
         return '<UnifiedPage %s>' % self.number
 
 
-from object_managers.gae_db import GaeQuerysetWrapper
-
-class GaeUnifiedPaginator(UnifiedPaginator):
-
+class DjangoNonrelPaginator(UnifiedPaginator):
+    """
+        Paginator that uses a Django-nonrel's GAE db queries to retrieve the objects.
+    """
     def __init__(self, queryset, *args, **kwargs):
-        object_list = GaeQuerysetWrapper(queryset)
-        super(GaeUnifiedPaginator, self).__init__(object_list, *args, **kwargs)
+        # Inline import otherwise importing the UnifiedPaginator would fail
+        # because of this import!
+        from object_managers.gae_db import DjangoNonrelManager
+        object_list = DjangoNonrelManager(queryset)
+        super(DjangoNonrelPaginator, self).__init__(object_list, *args, **kwargs)
+
+
+class GaeNdbPaginator(UnifiedPaginator):
+    """
+        Paginator using GAE's NDB.
+    """
+    def __init__(self, query, *args, **kwargs):
+        from object_managers.ndb_api import GaeNdbModelManager
+        object_list = GaeNdbModelManager(query)
+        super(GaeNdbPaginator, self).__init__(object_list, *args, **kwargs)
