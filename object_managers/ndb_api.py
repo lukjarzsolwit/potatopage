@@ -24,7 +24,6 @@ class NdbModelObjectManager(ObjectManager):
             str(self.query._Query__ancestor),
             str(self.query._Query__filters),
             str(self.query._Query__orders),
-            str(self.query._Query__group_by),
             str(self.query._Query__app),
             str(self.query._Query__namespace)
         ]).replace(" ", "_")
@@ -55,7 +54,8 @@ class NdbModelObjectManager(ObjectManager):
         )
 
         self._starting_cursor = None
-        self._latest_end_cursor = cursor.urlsafe()
+        if cursor is not None:
+            self._latest_end_cursor = cursor.urlsafe()
         self._contians_more_entities = more
 
         return entities[value]
