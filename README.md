@@ -41,3 +41,5 @@ The only bit to keep in mind is that all these paginators won't query all object
 
 * `page.available_pages()`: returns a list of page numbers that have already been queried by the paginator. 
 * `page.final_page_visible()`: checks if the list of page numbers returned by `page.available_pages()` contains the final page or not and returns the result as a boolean.
+
+Also, remember to add potatopage app to you INSTALLED_APPS if you want to use potatopage temlpate tags in your templates
