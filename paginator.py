@@ -55,6 +55,7 @@ class UnifiedPaginator(Paginator):
         return cache.set(key, count)
 
     def _get_known_items_count(self):
+        """ Use this when you don't know how many pages there is """
         key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_COUNT"])
         return cache.get(key)
 
@@ -211,6 +212,7 @@ class UnifiedPage(Page):
         return cached_count
 
     def known_end_index(self):
+        """ Use this when you don't know how many pages there is """
         return (self.paginator._get_known_page_count() - 1) * self.paginator.per_page
 
     def end_index(self):
