@@ -31,7 +31,7 @@ def paginator_object_count(page):
     """ Calculate approximate (quick) count of how many objects are in
         full object_list for pagination count """
     if not page.has_next():
-        return page_object_count(page)
+        return page.end_index()
     else:
         if page.paginator.__class__.__name__ == "DjangoNonrelPaginator" and \
                 page.__class__.__name__ == "UnifiedPage":
@@ -39,12 +39,9 @@ def paginator_object_count(page):
 
             if not last_page:
                 more_than_string = 'more than'
-                prev_page = -2 if len(page.available_pages()) > 1 else -1
-                return more_than_string + " %s" % (page.available_pages()[prev_page] * page.paginator.per_page)
+                return more_than_string + " %s" % page.known_end_index()
             else:
-                last_page_obj = page.paginator.page(last_page)
-                last_page_count = len(last_page_obj.object_list)
-                return "%s" % ((page.paginator._get_known_page_count() - 1) * page.paginator.per_page + last_page_count)
+                return page.last_page_end_index()
 
         else:
             # Normal Django Paginator.
@@ -52,11 +49,3 @@ def paginator_object_count(page):
 
         return last_page * page.paginator.per_page
 
-@register.simple_tag
-def page_object_count(page):
-    """ Calculate an index of the last element in a current page """
-    if page.has_next():
-        return page.end_index()
-    else:
-        # Special case for a last page when the page has less items then a per_page value
-        return page.end_index() - page.paginator.per_page + len(page.object_list)

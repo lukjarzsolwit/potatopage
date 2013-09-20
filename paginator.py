@@ -54,6 +54,14 @@ class UnifiedPaginator(Paginator):
         key = "|".join([self.object_list.cache_key, "KNOWN_MAX"])
         return cache.set(key, count)
 
+    def _get_known_items_count(self):
+        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_COUNT"])
+        return cache.get(key)
+
+    def _put_known_items_count(self, count):
+        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_COUNT"])
+        return cache.set(key, count)
+
     def _put_cursor(self, zero_based_page, cursor):
         if not self.object_list.supports_cursors or cursor is None:
             return
@@ -68,7 +76,6 @@ class UnifiedPaginator(Paginator):
         result = cache.get(key)
         if result is None:
             raise CursorNotFound("No cursor available for %s" % zero_based_page)
-        return result
 
     def has_cursor_for_page(self, page):
         try:
@@ -195,9 +202,24 @@ class UnifiedPage(Page):
             return 1
         return (self.paginator.per_page * (self.number - 1)) + 1
 
+    def last_page_end_index(self):
+        """ A special case for the last page as a number of items there may not be equal to a per_page value """
+        cached_count = self.paginator._get_known_items_count()
+        if not cached_count:
+            cached_count = (self.number - 1) * self.paginator.per_page + len(self.object_list)
+            self.paginator._put_known_items_count(cached_count)
+        return cached_count
+
+    def known_end_index(self):
+        return (self.paginator._get_known_page_count() - 1) * self.paginator.per_page
+
     def end_index(self):
         """ Override to prevent a call to _get_count """
-        return self.number * self.paginator.per_page
+        if self.has_next():
+            return self.number * self.paginator.per_page
+        else:
+            # Special case for a last page when the page has less items then a per_page value
+            return self.last_page_end_index()
 
     def final_page_visible(self):
         return self.paginator._get_final_page() in self.available_pages()
