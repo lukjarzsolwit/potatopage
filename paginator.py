@@ -46,21 +46,29 @@ class UnifiedPaginator(Paginator):
         key = "|".join([self.object_list.cache_key, "LAST_PAGE"])
         cache.set(key, page)
 
+    def _get_final_item(self):
+        key = "|".join([self.object_list.cache_key, "LAST_ITEM"])
+        return cache.get(key)
+
+    def _put_final_item(self, item):
+        key = "|".join([self.object_list.cache_key, "LAST_ITEM"])
+        cache.set(key, item)
+
     def _get_known_page_count(self):
-        key = "|".join([self.object_list.cache_key, "KNOWN_MAX"])
+        key = "|".join([self.object_list.cache_key, "KNOWN_PAGE_MAX"])
         return cache.get(key)
 
     def _put_known_page_count(self, count):
-        key = "|".join([self.object_list.cache_key, "KNOWN_MAX"])
+        key = "|".join([self.object_list.cache_key, "KNOWN_PAGE_MAX"])
         return cache.set(key, count)
 
     def _get_known_items_count(self):
         """ Use this when you don't know how many pages there is """
-        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_COUNT"])
+        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_MAX"])
         return cache.get(key)
 
     def _put_known_items_count(self, count):
-        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_COUNT"])
+        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_MAX"])
         return cache.set(key, count)
 
     def _put_cursor(self, zero_based_page, cursor):
@@ -162,6 +170,7 @@ class UnifiedPaginator(Paginator):
             else:
                 raise EmptyPage('That page contains no results')
 
+        # Calculate known_page_count and cache it if necessary.
         known_page_count = int(nearest_page_with_cursor + ceil(batch_result_count / float(self.per_page)))
 
         if known_page_count >= self._get_known_page_count():
@@ -176,6 +185,17 @@ class UnifiedPaginator(Paginator):
                 known_page_count += 1
 
             self._put_known_page_count(known_page_count)
+
+        # Calculate known_item_count and if it's the last item
+        known_item_count = int(nearest_page_with_cursor * self.per_page + batch_result_count)
+
+        if known_item_count > self._get_known_items_count():
+            self._put_known_items_count(known_item_count)
+
+        if batch_result_count < (self.per_page * self._batch_size):
+            # No need to read ahead for one item, it won't be 100% accurate anyway.
+            self._put_final_item(known_item_count)
+
         return UnifiedPage(actual_results, number, self)
 
     def _get_count(self):
@@ -204,25 +224,16 @@ class UnifiedPage(Page):
             return 1
         return (self.paginator.per_page * (self.number - 1)) + 1
 
-    def last_page_end_index(self):
-        """ A special case for the last page as a number of items there may not be equal to a per_page value """
-        cached_count = self.paginator._get_known_items_count()
-        if not cached_count:
-            cached_count = (self.number - 1) * self.paginator.per_page + len(self.object_list)
-            self.paginator._put_known_items_count(cached_count)
-        return cached_count
-
-    def known_end_index(self):
-        """ Use this when you don't know how many pages there is """
-        return (self.paginator._get_known_page_count() - 1) * self.paginator.per_page
-
     def end_index(self):
         """ Override to prevent a call to _get_count """
         if self.has_next():
             return self.number * self.paginator.per_page
         else:
             # Special case for a last page when the page has less items then a per_page value
-            return self.last_page_end_index()
+            final_item_count = self.paginator._get_final_item()
+            if not final_item_count:
+                return self.paginator._get_known_items_count()
+            return final_item_count
 
     def final_page_visible(self):
         return self.paginator._get_final_page() in self.available_pages()
