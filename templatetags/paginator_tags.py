@@ -19,14 +19,6 @@ def paginator_querystring(context, page_number, page_name):
     return add_to_query_string(context, 'page_name', page_number)
 
 
-@register.simple_tag(takes_context=True)
-def set_page_name(context):
-    """ Defaults the page_name variable to 'page', if there isn't one. """
-    if 'page_name' not in context:
-        context['page_name'] = 'page'
-    return ''
-
-
 @register.simple_tag
 def paginator_total_object_count(page):
     """ Calculate approximate (quick) count of how many objects are in
