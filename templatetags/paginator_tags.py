@@ -20,8 +20,8 @@ def paginator_querystring(context, page_number, page_name):
 
 
 @register.simple_tag
-def paginator_total_object_count(page):
-    """ Calculate approximate (quick) count of how many objects are in
+def paginator_object_count(page):
+    """ Calculate approximate (quick) or the exact (if the last page was reached) count of how many objects are in
         full object_list for pagination count """
     if page.paginator.__class__.__name__ == "DjangoNonrelPaginator" and \
             page.__class__.__name__ == "UnifiedPage":
