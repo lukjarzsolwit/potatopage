@@ -27,22 +27,19 @@ def add_to_query_string(context, key, value):
     return query_string.urlencode()
 
 @register.simple_tag
-def paginator_object_count(page):
+def paginator_total_object_count(page):
     """ Calculate approximate (quick) count of how many objects are in
         full object_list for pagination count """
-    if not page.has_next():
-        return page.end_index()
-    else:
-        if page.paginator.__class__.__name__ == "DjangoNonrelPaginator" and \
-                page.__class__.__name__ == "UnifiedPage":
-            total_item_count = page.paginator._get_final_item()
+    if page.paginator.__class__.__name__ == "DjangoNonrelPaginator" and \
+            page.__class__.__name__ == "UnifiedPage":
+        total_item_count = page.paginator._get_final_item()
 
-            if not total_item_count:
-                more_than_string = 'more than'
-                return "%s %d" % (more_than_string,
-                    page.paginator._get_known_items_count())
+        if not total_item_count:
+            more_than_string = 'more than'
+            return "%s %d" % (more_than_string,
+                page.paginator._get_known_items_count())
 
-            return total_item_count
+        return total_item_count
 
-        # Normal Django Paginator.
-        return page.count()
+    # Normal Django Paginator.
+    return page.count()
