@@ -96,6 +96,40 @@ class DjangoNonrelPaginatorTests(TestCase):
 
         self.assertRaises(EmptyPage, paginator.page, 4)
 
+    def test_total_items_count(self):
+        """ Test total items count 
+            We don't know the real count until we reach the last page 
+            and because of that we cannt say what's the total number of items straight away.
+            The _get_known_items_count should always return max known number of items (estimated or exact one).
+        """
+
+        per_page = 5
+        paginator = DjangoNonrelPaginator(DjangoNonrelPaginationModel.objects.all().order_by("field1"), per_page)
+
+        # get the first page
+        page = paginator.page(1)
+        self.assertEqual(page.paginator._get_known_items_count(), per_page)  # estimated number
+
+        # go to the next (but not last) page
+        page = paginator.page(page.next_page_number())
+        self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page)  # estimated number
+
+        # go back to the first page
+        page = paginator.page(page.previous_page_number())
+        self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page)  # estimated number (from cache)
+
+        # go to the next (but not last) page
+        page = paginator.page(page.next_page_number())
+        self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page)  # estimated number (from cache)
+
+        # go to the last page
+        page = paginator.page(page.next_page_number())
+        self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page + 2)  # exact number
+
+        # go back to the previous page
+        page = paginator.page(page.previous_page_number())
+        self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page + 2)  # exact number (from cache)
+
 
 class GaeNdbPaginationModel(ndb.Model):
     field1 = ndb.IntegerProperty()
