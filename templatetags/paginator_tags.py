@@ -35,17 +35,14 @@ def paginator_object_count(page):
     else:
         if page.paginator.__class__.__name__ == "DjangoNonrelPaginator" and \
                 page.__class__.__name__ == "UnifiedPage":
-            last_page = page.paginator._get_final_page()
+            total_item_count = page.paginator._get_final_item()
 
-            if not last_page:
+            if not total_item_count:
                 more_than_string = 'more than'
-                return more_than_string + " %s" % page.known_end_index()
-            else:
-                return page.last_page_end_index()
+                return "%s %d" % (more_than_string,
+                    page.paginator._get_known_items_count())
 
-        else:
-            # Normal Django Paginator.
-            last_page = page.paginator.num_pages
+            return total_item_count
 
-        return last_page * page.paginator.per_page
-
+        # Normal Django Paginator.
+        return page.count()
