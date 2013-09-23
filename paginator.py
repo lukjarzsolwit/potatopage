@@ -77,6 +77,7 @@ class UnifiedPaginator(Paginator):
         result = cache.get(key)
         if result is None:
             raise CursorNotFound("No cursor available for %s" % zero_based_page)
+        return result
 
     def has_cursor_for_page(self, page):
         try:
