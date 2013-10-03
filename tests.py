@@ -131,6 +131,33 @@ class DjangoNonrelPaginatorTests(TestCase):
         self.assertEqual(page.paginator._get_known_items_count(), 2 * per_page + 2)  # exact number (from cache)
 
 
+    def test_invalidate_cache(self):
+        per_page = 5
+        paginator = DjangoNonrelPaginator(DjangoNonrelPaginationModel.objects.all().order_by("field1"), per_page)
+
+        paginator.page(1)
+        paginator.page(2)
+        paginator.page(3)  # all the value are now cached
+
+        self.assertEqual(paginator._get_final_page(), 3)
+        self.assertEqual(paginator._get_final_item(), 12)
+
+        # create more pages
+        for i in xrange(12):
+            DjangoNonrelPaginationModel.objects.create(field1=i+12)
+
+        paginator.clear_cache()
+
+        self.assertNotEqual(paginator._get_final_page(), 3)
+        self.assertNotEqual(paginator._get_final_item(), 12)
+
+        paginator.page(4)
+        paginator.page(5)  # all the value are now cached
+
+        self.assertEqual(paginator._get_final_page(), 5)
+        self.assertEqual(paginator._get_final_item(), 24)
+
+
 class GaeNdbPaginationModel(ndb.Model):
     field1 = ndb.IntegerProperty()
 
