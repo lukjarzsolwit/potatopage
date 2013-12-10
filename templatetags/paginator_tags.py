@@ -16,7 +16,7 @@ def paginator_querystring(context, page_number, page_name):
     """ Formats the querystring for the given page number, but keeps the rest of the querystring in tact.
         The page_name argument handles multiple paginators in the same template. The default one is 'page'.
     """
-    return add_to_query_string(context, 'page_name', page_number)
+    return add_to_query_string(context, page_name, page_number)
 
 
 @register.simple_tag
