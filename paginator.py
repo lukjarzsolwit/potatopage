@@ -16,6 +16,13 @@ class CursorNotFound(Exception):
     pass
 
 class UnifiedPaginator(Paginator):
+    _static_cache_suffixes = {
+        "LAST_PAGE": "LAST_PAGE",
+        "LAST_ITEM": "LAST_ITEM",
+        "KNOWN_PAGE_MAX": "KNOWN_PAGE_MAX",
+        "KNOWN_ITEMS_MAX": "KNOWN_ITEMS_MAX"
+    }
+
     def __init__(self, object_list, per_page, batch_size=1, readahead=True, *args, **kwargs):
         """
             batch_size - The steps (in pages) that cursors are cached. A batch_size
@@ -38,37 +45,54 @@ class UnifiedPaginator(Paginator):
 
         super(UnifiedPaginator, self).__init__(object_list, per_page, *args, **kwargs)
 
+    def flush_cache(self):
+
+        cache_suffixes = self._static_cache_suffixes.values()
+
+        known_page_max = self._get_known_page_count()
+
+        if known_page_max:
+            for i in range(int(known_page_max)+1):
+                cache_suffixes.append(str(i))
+
+        for suffix in cache_suffixes:
+            key = self._make_key(suffix)
+            cache.delete(key)
+
+    def _make_key(self, suffix):
+        return "|".join([self.object_list.cache_key, self._static_cache_suffixes.get(suffix, suffix)])
+
     def _get_final_page(self):
-        key = "|".join([self.object_list.cache_key, "LAST_PAGE"])
+        key = self._make_key("LAST_PAGE")
         return cache.get(key)
 
     def _put_final_page(self, page):
-        key = "|".join([self.object_list.cache_key, "LAST_PAGE"])
+        key = self._make_key("LAST_PAGE")
         cache.set(key, page)
 
     def _get_final_item(self):
-        key = "|".join([self.object_list.cache_key, "LAST_ITEM"])
+        key = self._make_key("LAST_ITEM")
         return cache.get(key)
 
     def _put_final_item(self, item):
-        key = "|".join([self.object_list.cache_key, "LAST_ITEM"])
+        key = self._make_key("LAST_ITEM")
         cache.set(key, item)
 
     def _get_known_page_count(self):
-        key = "|".join([self.object_list.cache_key, "KNOWN_PAGE_MAX"])
+        key = self._make_key("KNOWN_PAGE_MAX")
         return cache.get(key)
 
     def _put_known_page_count(self, count):
-        key = "|".join([self.object_list.cache_key, "KNOWN_PAGE_MAX"])
+        key = self._make_key("KNOWN_PAGE_MAX")
         return cache.set(key, count)
 
     def _get_known_items_count(self):
         """ Use this when you don't know how many pages there is """
-        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_MAX"])
+        key = self._make_key("KNOWN_ITEMS_MAX")
         return cache.get(key)
 
     def _put_known_items_count(self, count):
-        key = "|".join([self.object_list.cache_key, "KNOWN_ITEMS_MAX"])
+        key = self._make_key("KNOWN_ITEMS_MAX")
         return cache.set(key, count)
 
     def _put_cursor(self, zero_based_page, cursor):
@@ -76,12 +100,12 @@ class UnifiedPaginator(Paginator):
             return
 
         logging.info("Storing cursor for page: %s" % (zero_based_page))
-        key = "|".join([self.object_list.cache_key, str(zero_based_page)])
+        key = self._make_key(str(zero_based_page))
         cache.set(key, cursor)
 
     def _get_cursor(self, zero_based_page):
         logging.info("Getting cursor for page: %s" % (zero_based_page))
-        key = "|".join([self.object_list.cache_key, str(zero_based_page)])
+        key = self._make_key(str(zero_based_page))
         result = cache.get(key)
         if result is None:
             raise CursorNotFound("No cursor available for %s" % zero_based_page)
